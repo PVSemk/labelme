@@ -681,11 +681,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def changeBrightness(self):
         self.canvas.setEnabled(False)
-        width = self.image.width()
-        height = self.image.height()
+        # Хотелось бы избежать этой копии
+        new_image = self.image.copy()
+        width = new_image.width()
+        height = new_image.height()
+        # А вот это слишком долго
         for x in range(width):
             for y in range(height):
-                color = self.image.pixelColor(x, y)
+                # Возможно, из-за того, что создаем для каждого пикселя экземпляр этого класса
+                color = new_image.pixelColor(x, y)
                 r, g, b, _ = color.getRgb()
                 # print(r, g, b)
                 r = np.clip(r + 2.55 * self.brightnessWidget.value(), 0, 255)
@@ -694,8 +698,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 # color.setHslF(color.hslHueF(), color.hslSaturationF(), self.brightnessWidget.value())
                 color.setRgb(r, g, b)
-                self.image.setPixelColor(x, y, color)
-        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(self.image))
+                new_image.setPixelColor(x, y, color)
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(new_image))
         self.canvas.setEnabled(True)
         self.paintCanvas()
         # new_image = np.zeros((height, width, 3), np.uint8)
