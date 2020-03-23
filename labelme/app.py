@@ -5,6 +5,7 @@ import os
 import os.path as osp
 import re
 import webbrowser
+import numpy as np
 
 import imgviz
 from qtpy import QtCore
@@ -29,6 +30,7 @@ from labelme.widgets import LabelListWidgetItem
 from labelme.widgets import ToolBar
 from labelme.widgets import UniqueLabelQListWidget
 from labelme.widgets import ZoomWidget
+from labelme.widgets import BrightnessWidget
 
 
 # FIXME
@@ -144,6 +146,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_dock.setWidget(fileListWidget)
 
         self.zoomWidget = ZoomWidget()
+        self.brightnessWidget = BrightnessWidget()
 
         self.canvas = self.labelList.canvas = Canvas(
             epsilon=self._config['epsilon'],
@@ -361,7 +364,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         help = action(self.tr('&Tutorial'), self.tutorial, icon='help',
                       tip=self.tr('Show tutorial page'))
-
+        brightness = QtWidgets.QWidgetAction(self)
+        brightness.setDefaultWidget(self.brightnessWidget)
         zoom = QtWidgets.QWidgetAction(self)
         zoom.setDefaultWidget(self.zoomWidget)
         self.zoomWidget.setWhatsThis(
@@ -588,6 +592,7 @@ class MainWindow(QtWidgets.QMainWindow):
             zoomOut,
             fitWindow,
             fitWidth,
+            brightness
         )
 
         self.statusBar().showMessage(self.tr('%s started.') % __appname__)
@@ -648,6 +653,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Callbacks:
         self.zoomWidget.valueChanged.connect(self.paintCanvas)
+        self.brightnessWidget.valueChanged.connect(self.changeBrightness)
 
         self.populateModeActions()
 
@@ -672,6 +678,31 @@ class MainWindow(QtWidgets.QMainWindow):
         return toolbar
 
     # Support Functions
+
+    def changeBrightness(self):
+        width = self.image.width()
+        height = self.image.height()
+        for x in range(width):
+            for y in range(height):
+                color = self.image.pixelColor(x, y)
+                r, g, b, _ = color.getRgb()
+                # print(r, g, b)
+                r = np.clip(r + 2.55 * self.brightnessWidget.value(), 0, 255)
+                g = np.clip(g + 2.55 * self.brightnessWidget.value(), 0, 255)
+                b = np.clip(b + 2.55 * self.brightnessWidget.value(), 0, 255)
+
+                # color.setHslF(color.hslHueF(), color.hslSaturationF(), self.brightnessWidget.value())
+                color.setRgb(r, g, b)
+                self.image.setPixelColor(x, y, color)
+        # new_image = np.zeros((height, width, 3), np.uint8)
+        # ptr = self.image.bits()
+        # arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 3))
+        # for y in range(arr.shape[0]):
+        #     for x in range(arr.shape[1]):
+        #         for c in range(arr.shape[2]):
+        #             new_image[y, x, c] = np.clip(arr[y, x, c] + 2.55 * self.brightnessWidget.value(), 0, 255)
+        #
+        # self.image = QtGui.QImage.fromData(new_image)
 
     def noShapes(self):
         return not len(self.labelList)
