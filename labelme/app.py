@@ -367,8 +367,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         brightness = QtWidgets.QWidgetAction(self)
         brightness.setDefaultWidget(self.brightnessWidget)
+        brightness.setEnabled(False)
 
-        inversion = action(self.tr('&Inversion'), self.inversion, shortcuts['inversion'], 'inversion', self.tr('Inverse the image'))
+        inversion = action(self.tr('&Inversion'), self.inversion, shortcuts['inversion'], 'inversion', self.tr('Inverse the image'), enabled=False)
         zoom = QtWidgets.QWidgetAction(self)
         zoom.setDefaultWidget(self.zoomWidget)
         self.zoomWidget.setWhatsThis(
@@ -463,6 +464,8 @@ class MainWindow(QtWidgets.QMainWindow):
             zoomActions=zoomActions,
             openNextImg=openNextImg, openPrevImg=openPrevImg,
             fileMenuActions=(open_, opendir, save, saveAs, close, quit),
+            inversion=inversion,
+            brightness=brightness,
             tool=(),
             # XXX: need to add some actions here to activate the shortcut
             editMenu=(
@@ -503,6 +506,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 createPointMode,
                 createLineStripMode,
                 editMode,
+                inversion,
+                brightness
             ),
             onShapesPresent=(saveAs, hideAll, showAll),
         )
@@ -559,6 +564,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 fitWindow,
                 fitWidth,
                 None,
+                inversion
             ),
         )
 
