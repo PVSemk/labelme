@@ -680,6 +680,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # Support Functions
 
     def changeBrightness(self):
+        self.canvas.setEnabled(False)
         width = self.image.width()
         height = self.image.height()
         for x in range(width):
@@ -694,6 +695,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 # color.setHslF(color.hslHueF(), color.hslSaturationF(), self.brightnessWidget.value())
                 color.setRgb(r, g, b)
                 self.image.setPixelColor(x, y, color)
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(self.image))
+        self.canvas.setEnabled(True)
+        self.paintCanvas()
         # new_image = np.zeros((height, width, 3), np.uint8)
         # ptr = self.image.bits()
         # arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 3))
