@@ -364,8 +364,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         help = action(self.tr('&Tutorial'), self.tutorial, icon='help',
                       tip=self.tr('Show tutorial page'))
+
         brightness = QtWidgets.QWidgetAction(self)
         brightness.setDefaultWidget(self.brightnessWidget)
+
+        inversion = action(self.tr('&Inversion'), self.inversion, shortcuts['inversion'], 'inversion', self.tr('Inverse the image'))
         zoom = QtWidgets.QWidgetAction(self)
         zoom.setDefaultWidget(self.zoomWidget)
         self.zoomWidget.setWhatsThis(
@@ -592,7 +595,8 @@ class MainWindow(QtWidgets.QMainWindow):
             zoomOut,
             fitWindow,
             fitWidth,
-            brightness
+            brightness,
+            inversion
         )
 
         self.statusBar().showMessage(self.tr('%s started.') % __appname__)
@@ -678,10 +682,33 @@ class MainWindow(QtWidgets.QMainWindow):
         return toolbar
 
     # Support Functions
+    def inversion(self):
+        self.canvas.setEnabled(False)
+        # Хотелось бы избежать этой копии
+        width = self.image.width()
+        height = self.image.height()
+        # А вот это слишком долго
+        for x in range(width):
+            for y in range(height):
+                # Возможно, из-за того, что создаем для каждого пикселя экземпляр этого класса
+                color = self.image.pixelColor(x, y)
+                r, g, b, _ = color.getRgb()
+                # print(r, g, b)
+                r = 255 - r
+                g = 255 - g
+                b = 255 - b
+
+                # color.setHslF(color.hslHueF(), color.hslSaturationF(), self.brightnessWidget.value())
+                color.setRgb(r, g, b)
+                self.image.setPixelColor(x, y, color)
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(self.image))
+        self.canvas.setEnabled(True)
+        self.paintCanvas()
+
 
     def changeBrightness(self):
         self.canvas.setEnabled(False)
-        # Хотелось бы избежать этой копии
+        # Хотелось бы избежать этой копии, потому что это не позволяет менять яркость совместно с, например, инверсией
         new_image = self.image.copy()
         width = new_image.width()
         height = new_image.height()

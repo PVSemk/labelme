@@ -87,3 +87,4 @@ shortcuts:
   edit_label: Ctrl+E
   toggle_keep_prev_mode: Ctrl+P
   brightness: null
+  inversion: null
