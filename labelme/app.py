@@ -150,6 +150,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.zoomWidget = ZoomWidget()
         self.brightnessWidget = BrightnessWidget()
         self.contrastWidget = ContrastWidget()
+        self.dicom_reader = utils.DICOMReader
 
         self.canvas = self.labelList.canvas = Canvas(
             epsilon=self._config['epsilon'],
@@ -377,6 +378,9 @@ class MainWindow(QtWidgets.QMainWindow):
         contrast.setEnabled(False)
 
         inversion = action(self.tr('&Inversion'), self.inversion, shortcuts['inversion'], 'inversion', self.tr('Inverse the image'), enabled=False)
+
+        reset_image = action(self.tr('Reset &Image'), self.reset_image, shortcuts['reset_img'], 'reset', self.tr('Return to original image'), enabled=False)
+
         zoom = QtWidgets.QWidgetAction(self)
         zoom.setDefaultWidget(self.zoomWidget)
         self.zoomWidget.setWhatsThis(
@@ -516,7 +520,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 editMode,
                 inversion,
                 brightness,
-                contrast
+                contrast,
+                reset_image
             ),
             onShapesPresent=(saveAs, hideAll, showAll),
         )
@@ -573,7 +578,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 fitWindow,
                 fitWidth,
                 None,
-                inversion
+                inversion,
+                reset_image
             ),
         )
 
@@ -612,7 +618,8 @@ class MainWindow(QtWidgets.QMainWindow):
             fitWidth,
             brightness,
             inversion,
-            contrast
+            contrast,
+            reset_image
         )
 
         self.statusBar().showMessage(self.tr('%s started.') % __appname__)
@@ -629,6 +636,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Application state.
         self.image = QtGui.QImage()
+        self.original_image = QtGui.QImage()
         self.imagePath = None
         self.recentFiles = []
         self.maxRecent = 7
@@ -701,14 +709,12 @@ class MainWindow(QtWidgets.QMainWindow):
     # Support Functions
     def inversion(self):
         self.canvas.setEnabled(False)
-        # Хотелось бы избежать этой копии
         width = self.image.width()
         height = self.image.height()
         prev_shapes = self.canvas.shapes
         # А вот это слишком долго
         for x in range(width):
             for y in range(height):
-                # Возможно, из-за того, что создаем для каждого пикселя экземпляр этого класса
                 color = self.image.pixelColor(x, y)
                 r, g, b, _ = color.getRgb()
                 # print(r, g, b)
@@ -723,18 +729,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.loadShapes(prev_shapes)
         self.canvas.setEnabled(True)
         self.paintCanvas()
+    # TODO: could copy be avoided?
+    def reset_image(self):
+        self.canvas.setEnabled(False)
+        prev_shapes = self.canvas.shapes
+        self.image = self.original_image.copy()
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(self.image))
+        self.canvas.loadShapes(prev_shapes)
+        self.canvas.setEnabled(True)
+        self.paintCanvas()
 
     def changeBrightness(self):
         self.canvas.setEnabled(False)
-        # Хотелось бы избежать этой копии, потому что это не позволяет менять яркость совместно с, например, инверсией
-        new_image = self.image.copy()
-        width = new_image.width()
-        height = new_image.height()
+        width = self.image.width()
+        height = self.image.height()
         prev_shapes = self.canvas.shapes
         # А вот это слишком долго
         for x in range(width):
             for y in range(height):
-                color = new_image.pixelColor(x, y)
+                color = self.image.pixelColor(x, y)
                 r, g, b, _ = color.getRgb()
                 r = np.clip(r + 2.55 * self.brightnessWidget.value(), 0, 255)
                 g = np.clip(g + 2.55 * self.brightnessWidget.value(), 0, 255)
@@ -742,23 +755,21 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 # color.setHslF(color.hslHueF(), color.hslSaturationF(), self.brightnessWidget.value())
                 color.setRgb(r, g, b)
-                new_image.setPixelColor(x, y, color)
-        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(new_image))
+                self.image.setPixelColor(x, y, color)
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(self.image))
         self.canvas.loadShapes(prev_shapes)
         self.canvas.setEnabled(True)
         self.paintCanvas()
 
     def changeContrast(self):
         self.canvas.setEnabled(False)
-        # Хотелось бы избежать этой копии, потому что это не позволяет менять яркость совместно с, например, инверсией
-        new_image = self.image.copy()
-        width = new_image.width()
-        height = new_image.height()
+        width = self.image.width()
+        height = self.image.height()
         prev_shapes = self.canvas.shapes
         # А вот это слишком долго
         for x in range(width):
             for y in range(height):
-                color = new_image.pixelColor(x, y)
+                color = self.image.pixelColor(x, y)
                 r, g, b, _ = color.getRgb()
                 r = np.clip(self.contrastWidget.value() * r, 0, 255)
                 g = np.clip(self.contrastWidget.value() * g, 0, 255)
@@ -766,8 +777,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 # color.setHslF(color.hslHueF(), color.hslSaturationF(), self.brightnessWidget.value())
                 color.setRgb(r, g, b)
-                new_image.setPixelColor(x, y, color)
-        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(new_image))
+                self.image.setPixelColor(x, y, color)
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(self.image))
         self.canvas.loadShapes(prev_shapes)
         self.canvas.setEnabled(True)
         self.paintCanvas()
@@ -1387,7 +1398,11 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             self.otherData = self.labelFile.otherData
         else:
-            self.imageData = LabelFile.load_image_file(filename)
+            print(filename)
+            if filename[-4:] == '.dcm':
+                self.imageData = self.dicom_reader.getQImage(filename)
+            else:
+                self.imageData = LabelFile.load_image_file(filename)
             if self.imageData:
                 self.imagePath = filename
             self.labelFile = None
@@ -1405,7 +1420,8 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             self.status(self.tr("Error reading %s") % filename)
             return False
-        self.image = image
+        self.original_image = image
+        self.image = self.original_image.copy()
         self.filename = filename
         if self._config['keep_prev']:
             prev_shapes = self.canvas.shapes
@@ -1553,6 +1569,7 @@ class MainWindow(QtWidgets.QMainWindow):
         path = osp.dirname(str(self.filename)) if self.filename else '.'
         formats = ['*.{}'.format(fmt.data().decode())
                    for fmt in QtGui.QImageReader.supportedImageFormats()]
+        formats.append('*.dcm')
         filters = self.tr("Image & Label files (%s)") % ' '.join(
             formats + ['*%s' % LabelFile.suffix])
         filename = QtWidgets.QFileDialog.getOpenFileName(

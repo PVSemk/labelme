@@ -88,3 +88,4 @@ shortcuts:
   toggle_keep_prev_mode: Ctrl+P
   brightness: null
   inversion: null
+  reset_img: null
