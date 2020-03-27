@@ -31,10 +31,12 @@ from labelme.widgets import ToolBar
 from labelme.widgets import UniqueLabelQListWidget
 from labelme.widgets import ZoomWidget
 from labelme.widgets import BrightnessWidget
+from labelme.widgets import ContrastWidget
 
 
 # FIXME
 # - [medium] Set max zoom value to something big enough for FitWidth/Window
+# - [medium] Clear label list when removing polygons
 
 # TODO(unknown):
 # - [high] Add polygon movement with arrow keys
@@ -147,6 +149,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.zoomWidget = ZoomWidget()
         self.brightnessWidget = BrightnessWidget()
+        self.contrastWidget = ContrastWidget()
 
         self.canvas = self.labelList.canvas = Canvas(
             epsilon=self._config['epsilon'],
@@ -369,6 +372,10 @@ class MainWindow(QtWidgets.QMainWindow):
         brightness.setDefaultWidget(self.brightnessWidget)
         brightness.setEnabled(False)
 
+        contrast = QtWidgets.QWidgetAction(self)
+        contrast.setDefaultWidget(self.contrastWidget)
+        contrast.setEnabled(False)
+
         inversion = action(self.tr('&Inversion'), self.inversion, shortcuts['inversion'], 'inversion', self.tr('Inverse the image'), enabled=False)
         zoom = QtWidgets.QWidgetAction(self)
         zoom.setDefaultWidget(self.zoomWidget)
@@ -466,6 +473,7 @@ class MainWindow(QtWidgets.QMainWindow):
             fileMenuActions=(open_, opendir, save, saveAs, close, quit),
             inversion=inversion,
             brightness=brightness,
+            contrast=contrast,
             tool=(),
             # XXX: need to add some actions here to activate the shortcut
             editMenu=(
@@ -507,7 +515,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 createLineStripMode,
                 editMode,
                 inversion,
-                brightness
+                brightness,
+                contrast
             ),
             onShapesPresent=(saveAs, hideAll, showAll),
         )
@@ -602,7 +611,8 @@ class MainWindow(QtWidgets.QMainWindow):
             fitWindow,
             fitWidth,
             brightness,
-            inversion
+            inversion,
+            contrast
         )
 
         self.statusBar().showMessage(self.tr('%s started.') % __appname__)
@@ -663,7 +673,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Callbacks:
         self.zoomWidget.valueChanged.connect(self.paintCanvas)
-        self.brightnessWidget.valueChanged.connect(self.changeBrightness)
+        self.brightnessWidget.sliderReleased.connect(self.changeBrightness)
+        self.contrastWidget.sliderReleased.connect(self.changeContrast)
 
         self.populateModeActions()
 
@@ -693,6 +704,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Хотелось бы избежать этой копии
         width = self.image.width()
         height = self.image.height()
+        prev_shapes = self.canvas.shapes
         # А вот это слишком долго
         for x in range(width):
             for y in range(height):
@@ -708,9 +720,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 color.setRgb(r, g, b)
                 self.image.setPixelColor(x, y, color)
         self.canvas.loadPixmap(QtGui.QPixmap.fromImage(self.image))
+        self.canvas.loadShapes(prev_shapes)
         self.canvas.setEnabled(True)
         self.paintCanvas()
-
 
     def changeBrightness(self):
         self.canvas.setEnabled(False)
@@ -718,13 +730,12 @@ class MainWindow(QtWidgets.QMainWindow):
         new_image = self.image.copy()
         width = new_image.width()
         height = new_image.height()
+        prev_shapes = self.canvas.shapes
         # А вот это слишком долго
         for x in range(width):
             for y in range(height):
-                # Возможно, из-за того, что создаем для каждого пикселя экземпляр этого класса
                 color = new_image.pixelColor(x, y)
                 r, g, b, _ = color.getRgb()
-                # print(r, g, b)
                 r = np.clip(r + 2.55 * self.brightnessWidget.value(), 0, 255)
                 g = np.clip(g + 2.55 * self.brightnessWidget.value(), 0, 255)
                 b = np.clip(b + 2.55 * self.brightnessWidget.value(), 0, 255)
@@ -733,17 +744,33 @@ class MainWindow(QtWidgets.QMainWindow):
                 color.setRgb(r, g, b)
                 new_image.setPixelColor(x, y, color)
         self.canvas.loadPixmap(QtGui.QPixmap.fromImage(new_image))
+        self.canvas.loadShapes(prev_shapes)
         self.canvas.setEnabled(True)
         self.paintCanvas()
-        # new_image = np.zeros((height, width, 3), np.uint8)
-        # ptr = self.image.bits()
-        # arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 3))
-        # for y in range(arr.shape[0]):
-        #     for x in range(arr.shape[1]):
-        #         for c in range(arr.shape[2]):
-        #             new_image[y, x, c] = np.clip(arr[y, x, c] + 2.55 * self.brightnessWidget.value(), 0, 255)
-        #
-        # self.image = QtGui.QImage.fromData(new_image)
+
+    def changeContrast(self):
+        self.canvas.setEnabled(False)
+        # Хотелось бы избежать этой копии, потому что это не позволяет менять яркость совместно с, например, инверсией
+        new_image = self.image.copy()
+        width = new_image.width()
+        height = new_image.height()
+        prev_shapes = self.canvas.shapes
+        # А вот это слишком долго
+        for x in range(width):
+            for y in range(height):
+                color = new_image.pixelColor(x, y)
+                r, g, b, _ = color.getRgb()
+                r = np.clip(self.contrastWidget.value() * r, 0, 255)
+                g = np.clip(self.contrastWidget.value() * g, 0, 255)
+                b = np.clip(self.contrastWidget.value() * b, 0, 255)
+
+                # color.setHslF(color.hslHueF(), color.hslSaturationF(), self.brightnessWidget.value())
+                color.setRgb(r, g, b)
+                new_image.setPixelColor(x, y, color)
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(new_image))
+        self.canvas.loadShapes(prev_shapes)
+        self.canvas.setEnabled(True)
+        self.paintCanvas()
 
     def noShapes(self):
         return not len(self.labelList)
