@@ -2,6 +2,8 @@
 
 from ._io import lblsave
 
+from .dicom_reader import DICOMReader
+
 from .image import apply_exif_orientation
 from .image import img_arr_to_b64
 from .image import img_b64_to_arr

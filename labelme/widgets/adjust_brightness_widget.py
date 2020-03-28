@@ -5,6 +5,7 @@ from qtpy import QtWidgets
 from PIL import Image
 from PIL import ImageEnhance
 from PIL import ImageOps
+from ..utils import DICOMReader
 
 
 class AdjustBrightnessContrastWidget(QtWidgets.QDialog):
@@ -15,6 +16,7 @@ class AdjustBrightnessContrastWidget(QtWidgets.QDialog):
 
         self.slider0 = self._create_slider()
         self.slider1 = self._create_slider()
+        self.reader = DICOMReader
         self.button = QtWidgets.QPushButton(self.tr('Inverse Image'))
         self.button.clicked.connect(self.push_button)
 
@@ -23,8 +25,8 @@ class AdjustBrightnessContrastWidget(QtWidgets.QDialog):
         formLayout.addRow(self.tr('Contrast'), self.slider1)
         formLayout.addWidget(self.button)
         self.setLayout(formLayout)
-
-        self.img = Image.open(filename).convert('RGBA')
+        _, ext = filename.split('.')
+        self.img = Image.open(filename).convert('RGBA') if ext != 'dcm' else self.reader.getImage(filename, pil=True)
         self.shapes = prev_shapes
         self.callback = callback
 
@@ -35,11 +37,17 @@ class AdjustBrightnessContrastWidget(QtWidgets.QDialog):
         img = self.img
         img = ImageEnhance.Brightness(img).enhance(brightness)
         img = ImageEnhance.Contrast(img).enhance(contrast)
+        bytes = img.tobytes('raw')
 
-        bytes = img.tobytes('raw', 'RGBA')
-        qimage = QtGui.QImage(bytes,
-                              img.size[0], img.size[1],
-                              QtGui.QImage.Format_RGB32).rgbSwapped()
+        if img.mode == 'L':
+            qimage = QtGui.QImage(bytes,
+                                  img.size[0], img.size[1],
+                                  QtGui.QImage.Format_Indexed8)
+        else:
+            qimage = QtGui.QImage(bytes,
+                                  img.size[0], img.size[1],
+                                  QtGui.QImage.Format_RGB32).rgbSwapped()
+
         self.callback(qimage, self.shapes)
 
     def push_button(self):

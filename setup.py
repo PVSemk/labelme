@@ -34,6 +34,7 @@ def get_install_requires():
         'PyYAML',
         'qtpy',
         'termcolor',
+        'pydicom'
     ]
 
     # Find python binding for qt with priority:

@@ -403,6 +403,7 @@ class MainWindow(QtWidgets.QMainWindow):
                             None, None,
                             'Adjust the brightness and contrast',
                             enabled=False)
+        self.dicom_reader = utils.DICOMReader
         # Group zoom controls into a list for easier toggling.
         zoomActions = (self.zoomWidget, zoomIn, zoomOut, zoomOrg,
                        fitWindow, fitWidth)
@@ -1309,11 +1310,16 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             self.otherData = self.labelFile.otherData
         else:
-            self.imageData = LabelFile.load_image_file(filename)
-            if self.imageData:
+            _, ext = filename.split('.')
+            if ext == 'dcm':
+                image = self.dicom_reader.getImage(filename)
                 self.imagePath = filename
+            else:
+                self.imageData = LabelFile.load_image_file(filename)
+                if self.imageData:
+                    self.imagePath = filename
+                image = QtGui.QImage.fromData(self.imageData)
             self.labelFile = None
-        image = QtGui.QImage.fromData(self.imageData)
 
         if image.isNull():
             formats = ['*.{}'.format(fmt.data().decode())
@@ -1475,6 +1481,7 @@ class MainWindow(QtWidgets.QMainWindow):
         path = osp.dirname(str(self.filename)) if self.filename else '.'
         formats = ['*.{}'.format(fmt.data().decode())
                    for fmt in QtGui.QImageReader.supportedImageFormats()]
+        formats.append('*.dcm')
         filters = self.tr("Image & Label files (%s)") % ' '.join(
             formats + ['*%s' % LabelFile.suffix])
         filename = QtWidgets.QFileDialog.getOpenFileName(
