@@ -22,6 +22,7 @@ from labelme.label_file import LabelFile
 from labelme.label_file import LabelFileError
 from labelme.logger import logger
 from labelme.shape import Shape
+from labelme.widgets import AdjustBrightnessContrastWidget
 from labelme.widgets import Canvas
 from labelme.widgets import LabelDialog
 from labelme.widgets import LabelListWidget
@@ -29,7 +30,6 @@ from labelme.widgets import LabelListWidgetItem
 from labelme.widgets import ToolBar
 from labelme.widgets import UniqueLabelQListWidget
 from labelme.widgets import ZoomWidget
-
 
 # FIXME
 # - [medium] Set max zoom value to something big enough for FitWidth/Window
@@ -46,16 +46,15 @@ LABEL_COLORMAP = imgviz.label_colormap(value=200)
 
 
 class MainWindow(QtWidgets.QMainWindow):
-
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = 0, 1, 2
 
     def __init__(
-        self,
-        config=None,
-        filename=None,
-        output=None,
-        output_file=None,
-        output_dir=None,
+            self,
+            config=None,
+            filename=None,
+            output=None,
+            output_file=None,
+            output_dir=None,
     ):
         if output is not None:
             logger.warning(
@@ -399,10 +398,11 @@ class MainWindow(QtWidgets.QMainWindow):
                           shortcuts['fit_width'], 'fit-width',
                           self.tr('Zoom follows window width'),
                           checkable=True, enabled=False)
-        brightness = action('Brightness\nContrast', self.adjustBrightnessContrast,
-                          None, None,
-                          'Adjust the brightness and contrast of the current image',
-                          enabled=False)
+        brightness = action('Brightness\nContrast',
+                            self.adjustBrightnessContrast,
+                            None, None,
+                            'Adjust the brightness and contrast',
+                            enabled=False)
         # Group zoom controls into a list for easier toggling.
         zoomActions = (self.zoomWidget, zoomIn, zoomOut, zoomOrg,
                        fitWindow, fitWidth)
@@ -1246,13 +1246,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.adjustScale()
 
     def adjustBrightnessContrast(self, value):
-        from labelme.widgets.adjust_brightness_widget import AdjustBrightnessContrastWidget
+
         def onNewBrightnessContrast(qimage, shapes):
             self.canvas.loadPixmap(QtGui.QPixmap.fromImage(qimage))
             self.canvas.loadShapes(shapes)
-        dlg = AdjustBrightnessContrastWidget(self.filename, self.canvas.shapes, onNewBrightnessContrast, parent=self)
-        val = dlg.exec()
 
+        dlg = AdjustBrightnessContrastWidget(self.filename,
+                                             self.canvas.shapes,
+                                             onNewBrightnessContrast,
+                                             parent=self)
+        dlg.exec()
 
     def togglePolygons(self, value):
         for item in self.labelList:
@@ -1361,8 +1364,8 @@ class MainWindow(QtWidgets.QMainWindow):
         return True
 
     def resizeEvent(self, event):
-        if self.canvas and not self.image.isNull()\
-           and self.zoomMode != self.MANUAL_ZOOM:
+        if self.canvas and not self.image.isNull() \
+                and self.zoomMode != self.MANUAL_ZOOM:
             self.adjustScale()
         super(MainWindow, self).resizeEvent(event)
 
