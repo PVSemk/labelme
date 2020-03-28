@@ -5,7 +5,7 @@ from PIL import Image, ImageEnhance
 import io
 
 class AdjustBrightnessContrastWidget(QtWidgets.QDialog):
-    def __init__(self, filename, callback, parent=None):
+    def __init__(self, filename, prev_shapes, callback, parent=None):
         super(AdjustBrightnessContrastWidget, self).__init__(parent)
         self.setModal(True)
         self.setWindowTitle('Brightness/Contrast')
@@ -19,6 +19,7 @@ class AdjustBrightnessContrastWidget(QtWidgets.QDialog):
         self.setLayout(formLayout)
 
         self.img = Image.open(filename).convert('RGBA')
+        self.shapes = prev_shapes
         self.callback = callback
 
     def onNewValue(self, value):
@@ -32,7 +33,7 @@ class AdjustBrightnessContrastWidget(QtWidgets.QDialog):
         qimage = QtGui.QImage(bytes,
                               img.size[0], img.size[1],
                               QtGui.QImage.Format_RGB32).rgbSwapped()
-        self.callback(qimage)
+        self.callback(qimage, self.shapes)
 
 
     def _create_slider(self):

@@ -1247,9 +1247,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def adjustBrightnessContrast(self, value):
         from labelme.widgets.adjust_brightness_widget import AdjustBrightnessContrastWidget
-        def onNewBrightnessContrast(qimage):
+        def onNewBrightnessContrast(qimage, shapes):
             self.canvas.loadPixmap(QtGui.QPixmap.fromImage(qimage))
-        dlg = AdjustBrightnessContrastWidget(self.filename, onNewBrightnessContrast, parent=self)
+            self.canvas.loadShapes(shapes)
+        dlg = AdjustBrightnessContrastWidget(self.filename, self.canvas.shapes, onNewBrightnessContrast, parent=self)
         val = dlg.exec()
 
 
