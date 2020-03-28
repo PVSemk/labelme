@@ -398,7 +398,7 @@ class MainWindow(QtWidgets.QMainWindow):
                           shortcuts['fit_width'], 'fit-width',
                           self.tr('Zoom follows window width'),
                           checkable=True, enabled=False)
-        brightness = action('Brightness\nContrast',
+        brightness = action('Brightness\nContrast\nInversion',
                             self.adjustBrightnessContrast,
                             None, None,
                             'Adjust the brightness and contrast',
